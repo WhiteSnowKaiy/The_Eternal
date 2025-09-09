@@ -39,6 +39,8 @@ async def load_extensions():
 
 asyncio.run(load_extensions())
 
+logger.debug("Extentions loaded!")
+
 
 @bot.event
 async def on_ready():

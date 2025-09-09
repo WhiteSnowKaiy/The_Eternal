@@ -89,7 +89,7 @@ class Transcripts(commands.Cog):
         return emoji
 
     def url_map_to_html_map(self, url_map: Dict[str, str], width: int | str = 96, height: int | str = 96) -> Dict[str, str]:
-        return {k: f"<img src=\"{v}\" width=\"{width}\" height=\"{height}\" />" for k, v in url_map.items()}
+        return {k: f'<img class="emoji" src="{v}" width="{width}" height="{height}" />' for k, v in url_map.items()}
 
     def download_all(self, emoji_urls: List[str], path: str):
         for e in emoji_urls:
@@ -109,67 +109,62 @@ class Transcripts(commands.Cog):
             message = message.replace(k, v)
 
         return message
-    
+        
     def escape_html(self, text: str) -> str:
-        """
-        Escapes markdown, mentions, and emoji, and formats code blocks properly while removing ANSI sequences.
-        """
-        def format_code_block(code: str) -> str:
-            # Clean ANSI sequences and preserve newlines, wrap in <pre>
-            clean_code = self.remove_ansi_sequences(code)
-            return f'<pre style="background-color:#2f3136;color:#f8f8f2;padding:10px;border-radius:5px;overflow-x:auto;">{clean_code}</pre>'
+            """
+            Keep code blocks as <pre>, escape mentions/markdown, preserve newlines,
+            and inject custom emoji <img> tags.
+            """
+            
+            def format_code_block(code: str) -> str:
+                clean_code = self.remove_ansi_sequences(code)
+                return f'<pre>{clean_code}</pre>'
 
-        # Split around triple backticks
-        parts = re.split(r'(```(?:[\s\S]*?)```)', text)
+            if not text:
+                return ""
 
-        result = ""
-        for part in parts:
-            if part.startswith("```") and part.endswith("```"):
-                # It's a code block
-                code = part[3:-3]  # Strip the backticks
-                result += format_code_block(code)
-            else:
-                # It's normal text — escape markdown and mentions
+            parts = re.split(r'(```(?:[\s\S]*?)```)', text)
+            out = []
+
+            for part in parts:
+                if part.startswith("```") and part.endswith("```"):
+                    out.append(format_code_block(part[3:-3]))
+                    continue
+
+                # Normal text
                 part = self.remove_ansi_sequences(part)
-                part = discord.utils.escape_markdown(discord.utils.escape_mentions(part))
+                part = discord.utils.escape_mentions(part)  # avoid pinging
+                # Keep it simple: don't try to re-implement markdown; just preserve lines.
+                part = part.replace("\r\n", "\n").replace("\r", "\n")
+                part = self.populate(part)  # convert <:custom:123> to <img ...>
+                part = part.replace("\n", "<br>")
 
-                # Replace some markdown manually
-                part = part.replace('__', '<br>')
-                part = part.replace('**', '<strong>').replace('**', '</strong>')
-                part = part.replace(r'\*\*', '<strong>').replace(r'\*\*', '</strong>')
-                part = part.replace(r'\_\_', '')
-                part = part.replace(r'\> ', '<br>')
-                part = part.replace('```', '')
+                out.append(part)
 
-                # Replace emojis
-                part = self.populate(part)
-
-                result += part
-
-        return result
+            return "".join(out)
 
 
 
 
     def escape_attachments(self, attachments):
         """
-        Escapes the URLs of attachments for embedding in Discord messages.
-
-        Parameters:
-            - attachments (list): A list of attachments, where each attachment is an object with a 'url' attribute.
-
-        Returns:
-            str: A string containing HTML img tags for each attachment, with escaped URLs and styling.
-                If no attachments are provided, an empty string is returned.
+        Returns a <div class="attachments">...</div> with block images/links.
         """
         if not attachments:
             return ""
 
-        attachment_list = [
-            f'<img src="{discord.utils.escape_markdown(attachment.url)}" style="max-width: 800px; max-height: 600px; margin: 5px" alt="Attachment">'
-            for attachment in attachments
-        ]
-        return " ".join(attachment_list)
+        parts = []
+        for a in attachments:
+            url = discord.utils.escape_markdown(a.url)
+            lower = url.lower()
+            if lower.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".avif")):
+                parts.append(f'<div class="attachment"><img src="{url}" alt="Attachment"></div>')
+            else:
+                parts.append(
+                    f'<div class="attachment"><a href="{url}" target="_blank" rel="noopener">Download attachment</a></div>'
+                )
+        return f'<div class="attachments">{"".join(parts)}</div>'
+
     
     async def removeHTML(self, user: discord.User):
         # Get a list of HTML files in the 'out' directory
@@ -198,157 +193,135 @@ class Transcripts(commands.Cog):
             except Exception as e:
                 transcript_logger.error("Error removing file %s", file_name, "%s",e)
 
+    
+    def _color_hex(self, color: discord.Color) -> str:
+        return f'#{getattr(color, "value", 0):06x}'
 
+                
     @commands.hybrid_command(
         name="transcriptchannel", 
         usage="/transcriptchannel <channel name>", 
         description="creates transcript for a channel",
     )
     async def transcriptchannel(self, ctx: commands.Context, channel: discord.TextChannel):
-        """
-        Creates transcript for a given channel.
-
-        Args:
-            ctx (commands.Context): The context of the command.
-            channel (discord.TextChannel): The channel for which to create transcripts.
-
-        Returns:
-            None
-
-        Examples:
-            # Create transcripts for a channel
-            /transcriptChannel #general
-        """
         with open(os.path.join(self.out_dir, f"{channel.name}.html"), "w", encoding="utf-8") as file:
-            file.write(
-                await createHeader(channel.name)
-            )
+            # Write header
+            file.write(await createHeader(channel.name))
+
             messages = []
             async for message in channel.history(limit=None):
-                
-                content = self.escape_html(message.content)
+                content = self.escape_html(message.content or "")
                 attachments = self.escape_attachments(message.attachments)
+                pfp_url = str(message.author.display_avatar.url)
+                color_hex = self._color_hex(message.author.color)
+                author_name = message.author.display_name
+                messages.append((pfp_url, color_hex, author_name, content, attachments))
                 
-                pfp = message.author.display_avatar
-                color = message.author.color
-                messages.append((pfp, color, message.author.name, content, attachments))
-                    
-            # Write messages to HTML file in reverse order
-            for msg in reversed(messages):
-                pfp, color, author_name, content, attachments = msg
-                # Add a container div and use CSS to center-align text relative to the image
-                file.write('<div style="display: flex; align-items: center;">')
-                file.write(f'<img src="{pfp}" style="max-width: 40px; max-height: 40px; border-radius: 50%;">')
-                file.write(f'<div style="margin-left: 10px;">')
-                file.write(f'<strong><a style="color: {color}">{author_name}</a>:</strong> {content}')
-                file.write(f'{attachments}')
-                file.write('</div></div>')
-                    
-        await self.removeHTML(ctx.author) # type: ignore
+            
+            # Write messages in reverse (oldest → newest)
+            for pfp, color, author_name, content, attachments in reversed(messages):
+                file.write(
+                    f'''
+                    <div class="message">
+                    <img class="avatar" src="{pfp}" alt="{author_name} avatar">
+                    <div class="content">
+                        <div class="header">
+                        <span class="username" style="color:{color}">{author_name}</span>
+                        </div>
+                        <div class="message-body">{content}</div>
+                        {attachments}
+                    </div>
+                    </div>
+                    '''
+                )
 
-    
+            # Close HTML
+            file.write("</main></body></html>")
+
+        await self.removeHTML(ctx.author)  # type: ignore
+
     
     @commands.hybrid_command(
         name="transcriptthread", 
-        usage="/transcriptthread <channel name>", 
-        description="creates transcript for a channel",
+        usage="/transcriptthread <thread>", 
+        description="creates transcript for a thread",
     ) 
     async def transcriptthread(self, ctx: commands.Context, thread: discord.Thread):
-        """
-        Creates transcript for a given channel.
-
-        Args:
-            ctx (commands.Context): The context of the command.
-            channel (discord.TextChannel): The channel for which to create transcripts.
-
-        Returns:
-            None
-
-        Examples:
-            # Create transcripts for a channel
-            /transcriptChannel #general
-        """
         with open(os.path.join(self.out_dir, f"{thread.name}.html"), "w", encoding="utf-8") as file:
-            # Creating head tag
-            file.write(
-                await createHeader(thread.name)
-            )
-            # Thread ID and Name
-            file.write(f"Thread ID: {thread.id}, Name: {thread.name}")
+            file.write(await createHeader(thread.name))
+            file.write(f"<div>Thread ID: {thread.id}, Name: {thread.name}</div>")
+
             messages = []
             async for message in thread.history(limit=None):
-                content = self.escape_html(message.content)
+                content = self.escape_html(message.content or "")
                 attachments = self.escape_attachments(message.attachments)
-                pfp = message.author.display_avatar
-                color = message.author.color
-                messages.append((pfp, color, message.author.name, content, attachments))
+                pfp_url = str(message.author.display_avatar.url)
+                color_hex = self._color_hex(message.author.color)
+                author_name = message.author.display_name
+                messages.append((pfp_url, color_hex, author_name, content, attachments))
 
-            # Write messages to HTML file in reverse order
-            for msg in reversed(messages):
-                pfp, color, author_name, content, attachments = msg
-                file.write(f'<div><img src="{pfp}" style="max-width: 40px; max-height: 40px; border-radius: 50%;"> <strong><a style="color: {color}">{author_name}</a>:</strong> {content}</div>')
-                if attachments:
-                    file.write(f'<div>{attachments}</div>')
+            for pfp, color, author_name, content, attachments in reversed(messages):
+                file.write(
+                    f'''
+    <div class="message">
+    <img class="avatar" src="{pfp}" alt="{author_name} avatar">
+    <div class="content">
+        <div class="header">
+        <span class="username" style="color:{color}">{author_name}</span>
+        </div>
+        <div class="message-body">{content}</div>
+        {attachments}
+    </div>
+    </div>
+    '''
+                )
 
-        await self.removeHTML(ctx.author) # type: ignore
+            file.write("</main></body></html>")
+
+        await self.removeHTML(ctx.author)  # type: ignore
         
-        
+            
     @commands.hybrid_command(
-        name="transcriptthreads", 
-        usage="/transcriptthreads <channel name>", 
-        description="creates transcripts for all threads in a channel",
-    )
+    name="transcriptthreads", 
+    usage="/transcriptthreads <channel>", 
+    description="creates transcripts for all threads in a channel",
+)
     async def transcriptthreads(self, ctx: commands.Context, channel: discord.TextChannel):
-        """
-        Creates transcripts for a given channel.
-
-        Args:
-            ctx (commands.Context): The context of the command.
-            channel (discord.TextChannel): The channel for which to create transcripts.
-
-        Returns:
-            None
-
-        Examples:
-            # Create transcripts for a channel
-            /transcriptChannel #general
-        """
         threads = channel.archived_threads()
 
         async for thread in threads:
             with open(os.path.join(self.out_dir, f"{thread.name}.html"), "w", encoding="utf-8") as file:
-                # Creating head tag
                 file.write(await createHeader(thread.name))
+                file.write(f"<div>Thread ID: {thread.id}, Name: {thread.name}</div>")
+
                 messages = []
-                # Thread ID and Name
-                file.write(f"Thread ID: {thread.id}, Name: {thread.name}")
                 async for message in thread.history(limit=None):
-                    content = self.escape_html(message.content)
+                    content = self.escape_html(message.content or "")
                     attachments = self.escape_attachments(message.attachments)
-                    pfp = message.author.display_avatar
-                    color = message.author.color
-                    messages.append((pfp, color, message.author.name, content, attachments))
+                    pfp_url = str(message.author.display_avatar.url)
+                    color_hex = self._color_hex(message.author.color)
+                    author_name = message.author.display_name
+                    messages.append((pfp_url, color_hex, author_name, content, attachments))
 
-                # Write messages to HTML file in reverse order
-                for msg in reversed(messages):
-                    pfp, color, author_name, content, attachments = msg
+                for pfp, color, author_name, content, attachments in reversed(messages):
                     file.write(
-                            f'''
-                                <div>
-                                    <img src="{pfp}" style="max-width: 40px; max-height: 40px; border-radius: 50%;"> 
-                                    <strong>
-                                        <a style="color: {color}">
-                                            {author_name}
-                                        </a>:
-                                    </strong> 
-                                    {content}
-                                </div>
-                                '''
-                            )
-                    if attachments:
-                        file.write(f'<div>{attachments}</div>')
+                        f'''
+    <div class="message">
+    <img class="avatar" src="{pfp}" alt="{author_name} avatar">
+    <div class="content">
+        <div class="header">
+        <span class="username" style="color:{color}">{author_name}</span>
+        </div>
+        <div class="message-body">{content}</div>
+        {attachments}
+    </div>
+    </div>
+    '''
+                    )
 
-        await self.removeHTML(ctx.author) # type: ignore
+                file.write("</main></body></html>")
+
+        await self.removeHTML(ctx.author)  # type: ignore
         
 async def setup(bot: commands.Bot):
     await bot.add_cog(Transcripts(bot))
