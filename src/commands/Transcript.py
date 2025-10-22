@@ -9,7 +9,7 @@ from logging import Logger, getLogger
 
 transcript_logger: Logger = getLogger("Eternal.Transcripts")
 
-class Transcripts(commands.Cog):
+class Transcript(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.out_dir = os.path.join(os.path.dirname(__file__), 'out')            
@@ -324,4 +324,4 @@ class Transcripts(commands.Cog):
         await self.removeHTML(ctx.author)  # type: ignore
         
 async def setup(bot: commands.Bot):
-    await bot.add_cog(Transcripts(bot))
+    await bot.add_cog(Transcript(bot))

@@ -84,13 +84,8 @@ class RSVPView(discord.ui.View):
         embed.clear_fields()
         
         embed.add_field(name="", value="**Please read the entire invite and react when you are done!**", inline=False)
-        embed.add_field(name="", value="- Failure to respond may cause a derole or warning.", inline=False)
-        embed.add_field(name="", value="- Your attendance is required for 2 days, wipe day, and day 2", inline=False)
-        embed.add_field(name="", value="- If you are unable to play required 5 hours every day or will be late, please make a ticket in ticket tool", inline=False)
-        embed.add_field(name="Important!", value="", inline=False)
-        embed.add_field(name="IP:", value=fields.get("IP:", "Unknown"))
-        embed.add_field(name="Store:", value=fields.get("Store:", "Unknown"))
-        embed.add_field(name="Time of wipe:", value=fields.get("Time of wipe:", "Unknown"))
+        # TODO: Change thist to be dynamic
+        embed.add_field(name="Time of wipe:", value=fields.get("Time of wipe:", "Unknown")) 
 
         for key in self.rsvp_responses[self.message_id].keys():
             if key != 'channel':
@@ -110,25 +105,20 @@ class RSVP(commands.Cog):
     @commands.hybrid_command(
         name="creatersvp", 
         usage="/creatersvp <server> <store> <ip> <time>", 
-        description="Creates RSVP channel with given parameters",
+        description="Creates RSVP with given parameters",
     )
-    async def creatersvp(self, ctx: commands.Context, server_name: str, store: str, ip: str, time: int):
+    async def creatersvp(self, ctx: commands.Context, time: int):
         logger.debug("Creating RSVP")
         embed = discord.Embed(
-            title=f"{server_name}",
+            title=f"{ctx.guild.name} - Upcoming RSVP",
             color=discord.Color.gold()
         )
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         embed.add_field(name="", value="**Please read the entire invite and react when you are done!**", inline=False)
-        embed.add_field(name="", value="- Failure to respond may cause a derole or warning.", inline=False)
-        embed.add_field(name="", value="- Your attendance is required for 2 days, wipe day, and day 2", inline=False)
-        embed.add_field(name="", value="- If you are unable to play required 5 hours every day or will be late, please make a ticket in ticket tool", inline=False)
-        embed.add_field(name="Important!", value="", inline=False)
-        embed.add_field(name="IP:", value=f"{ip}")
-        embed.add_field(name="Store:", value=f"{store}")
-        embed.add_field(name="Time of wipe:", value=f"<t:{time}>")
+    
+        embed.add_field(name="Starting:", value=f"<t:{time}>")
         embed.set_image(url="https://media.discordapp.net/attachments/1226250497447559338/1227614159080788018/Discord-Banner.png?ex=665fc207&is=665e7087&hm=8823504aee319f650a5edeec3ded3f40abc07d8fd5be62158c7bd0df7cb97b4e&=&format=webp&quality=lossless&width=1440&height=508")
-        embed.set_footer(text="Powered by DiXX")
+        embed.set_footer(text="Powered by The Eternal Bot")
 
         # Send the message first
         message = await ctx.send(embed=embed)

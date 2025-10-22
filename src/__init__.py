@@ -32,10 +32,10 @@ bot: commands.Bot = commands.Bot(BOT_PREFIX, intents=intents)
 
 async def load_extensions():
     await bot.load_extension(f"{__package__}.events.automod")
-    await bot.load_extension(f"{__package__}.commands.administration")
-    await bot.load_extension(f"{__package__}.commands.server_controlls")
-    await bot.load_extension(f"{__package__}.commands.transcript")
-    await bot.load_extension(f"{__package__}.commands.rsvp")
+    await bot.load_extension(f"{__package__}.commands.Administration")
+    await bot.load_extension(f"{__package__}.commands.EventServerController")
+    await bot.load_extension(f"{__package__}.commands.Transcript")
+    await bot.load_extension(f"{__package__}.commands.RSVP")
 
 asyncio.run(load_extensions())
 
