@@ -47,29 +47,6 @@ class EventServerController(commands.Cog):
 
             await ctx.send(f"✅ Channels created for team: {team}")
 
-        # Create "Organizers" category for event coordinators
-        organizers_category = await ctx.guild.create_category("Event Organizers")
-
-        # Deny access for everyone
-        await organizers_category.set_permissions(ctx.guild.default_role, read_messages=False, connect=False)
-
-        # Create organizer role and give access
-        organizers_role = await ctx.guild.create_role(name="Organizers")
-        await organizers_category.set_permissions(organizers_role, read_messages=True, connect=True)
-
-        # Give organizers access to all team categories
-        for category in created_categories:
-            await category.set_permissions(organizers_role, read_messages=True, connect=True)
-
-        await ctx.send("🎯 Organizer category and permissions configured")
-
-        # Create organizer text and voice channels
-        await ctx.guild.create_text_channel("organizers_chat", category=organizers_category)
-        await asyncio.sleep(1)
-        await ctx.guild.create_voice_channel("organizers_voice", category=organizers_category)
-
-        await ctx.send("✅ Organizer channels created successfully!")
-
 
     @commands.hybrid_command(
         name="removeteam",
