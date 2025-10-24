@@ -36,6 +36,7 @@ async def load_extensions():
     await bot.load_extension(f"{__package__}.commands.EventServerController")
     await bot.load_extension(f"{__package__}.commands.Transcript")
     await bot.load_extension(f"{__package__}.commands.RSVP")
+    await bot.load_extension(f"{__package__}.commands.Stats_commands")
 
 asyncio.run(load_extensions())
 
