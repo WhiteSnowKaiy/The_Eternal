@@ -3,7 +3,7 @@
 Configures logging for The Eternal bot, providing both file-based and console-based output with colored formatting.
 
 Attributes:
-    log_file (str): The path to the log file ("eternal.log").
+    log_file (str): The path to the log file ("Eternal.log").
     formatter (ColoredFormatter): A formatter for colorful console output.
     file_handler (FileHandler): A file handler for logging to the specified log file.
     console_handler (StreamHandler): A console handler for logging to the standard output.
@@ -17,7 +17,7 @@ from typing import List
 import sys
 from colorlog import ColoredFormatter
 
-log_file = "eternal.log"
+log_file = "Eternal.log"
 
 formatter = ColoredFormatter(
     "%(asctime)s %(log_color)s%(levelname)-8s%(reset)s %(name)s || %(message)s",

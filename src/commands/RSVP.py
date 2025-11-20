@@ -3,7 +3,7 @@ from discord.ext import commands
 import os
 import logging
 
-logger: logging.Logger = logging.getLogger("Universal.RSVP")
+logger: logging.Logger = logging.getLogger("Eternal.RSVP")
 
 class RSVPView(discord.ui.View):
     def __init__(self, rsvp_responses, message_id, options):

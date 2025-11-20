@@ -49,7 +49,57 @@ class Administration(commands.Cog):
             + "\n- ".join(warnings_text),
             ephemeral=True,
         )
-
+        
+        
+    @commands.hybrid_command(
+        name="clearwarnings",
+        usage="clearwarnings <member>",
+        description="Clears all warnings for the specified user",
+    )
+    @commands.guild_only()
+    @commands.has_permissions(moderate_members=True)
+    @commands.cooldown(1, 2, commands.BucketType.member)
+    async def clearwarnings(self, ctx: commands.Context, member: discord.Member): 
+        with get_session() as session:
+            deleted_count = (
+                session.query(WarningModel)
+                .filter_by(memberId=member.id)
+                .delete(synchronize_session=False)
+            )
+            session.commit()
+        await ctx.send(
+            f"Cleared {deleted_count} warnings for {member.mention}.",
+            ephemeral=True,
+        )
+    
+    
+    @commands.hybrid_command(
+        name="banmember",
+        usage="banmember <member> [reason]",
+        description="Bans the specified member from the server.",
+    )
+    @commands.guild_only()
+    @commands.has_permissions(ban_members=True)
+    @commands.cooldown(1, 2, commands.BucketType.member)
+    async def banmember(self, ctx: commands.Context, member: discord.Member, *, reason
+        = "No reason provided"):
+        await member.ban(reason=reason)
+        await ctx.send(f"{member.mention} has been banned. Reason: {reason}", ephemeral=True)
+    
+    
+    @commands.hybrid_command(
+        name="unbanmember",
+        usage="unbanmember <user_id>",
+        description="Unbans the specified user from the server.",
+    )
+    @commands.guild_only()
+    @commands.has_permissions(ban_members=True)
+    @commands.cooldown(1, 2, commands.BucketType.member)
+    async def unbanmember(self, ctx: commands.Context, user_id: int):
+        user = await self.bot.fetch_user(user_id)
+        await ctx.guild.unban(user)
+        await ctx.send(f"{user.mention} has been unbanned.", ephemeral=True)
+    
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Administration(bot))
