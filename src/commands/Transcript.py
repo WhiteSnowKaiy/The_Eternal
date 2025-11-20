@@ -209,8 +209,7 @@ class Transcript(commands.Cog):
 
                 
     @transcript.command(
-        name="channel", 
-        usage="/transcript channel <channel name>", 
+        name="channel",
         description="creates transcript for a channel",
     )
     async def transcriptchannel(self, interaction: discord.Interaction, channel: discord.TextChannel):
@@ -252,7 +251,6 @@ class Transcript(commands.Cog):
 
     @transcript.command(
         name="thread", 
-        usage="/transcript thread <thread>", 
         description="creates transcript for a thread",
     ) 
     async def transcriptthread(self, interaction: discord.Interaction, thread: discord.Thread):
@@ -292,7 +290,6 @@ class Transcript(commands.Cog):
             
     @transcript.command(
         name="threads", 
-        usage="/transcript threads <channel>", 
         description="creates transcripts for all threads in a channel",
     )
     async def transcriptthreads(self, interaction: discord.Interaction, channel: discord.TextChannel):

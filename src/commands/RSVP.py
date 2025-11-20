@@ -84,7 +84,6 @@ class RSVP(commands.Cog):
 
     @RSVP.command(
         name="create",
-        usage="/create <title> <description> <banner_url> <timestamp>",
         description="Create a universal RSVP with custom options.",
     )
     async def create(self, interaction: discord.Interaction, title: str, description: str, banner_url: str, timestamp: int):

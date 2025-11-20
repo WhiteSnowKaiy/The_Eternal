@@ -35,12 +35,11 @@ class Administration(commands.Cog):
     
     @warning.command(
         name="warnings",
-        usage="warnings <member>",
         description="Shows all warnings for the specified user",
     )
-    @warning.guild_only()
-    @warning.has_permissions(moderate_members=True)
-    @warning.cooldown(1, 2, commands.BucketType.member)
+    @commands.guild_only()
+    @commands.has_permissions(moderate_members=True)
+    @commands.cooldown(1, 2, commands.BucketType.member)
     async def warnings(self, interaction: discord.Interaction, member: discord.Member):
         logger.info(f"Fetching warnings for member {member} (ID: {member.id})")
         warnings: List[WarningModel] = []
@@ -75,12 +74,11 @@ class Administration(commands.Cog):
         
     @warning.command(
         name="clear",
-        usage="warning clear <member>",
         description="Clears all warnings for the specified user",
     )
-    @warning.guild_only()
-    @warning.has_permissions(moderate_members=True)
-    @warning.cooldown(1, 2, commands.BucketType.member)
+    @commands.guild_only()
+    @commands.has_permissions(moderate_members=True)
+    @commands.cooldown(1, 2, commands.BucketType.member)
     async def clearwarnings(self, interaction: discord.Interaction, member: discord.Member): 
         logger.info(f"Clearing warnings for member {member} (ID: {member.id})")
         with get_session() as session:
@@ -99,13 +97,12 @@ class Administration(commands.Cog):
     
     @ban.command(
         name="member",
-        usage="ban member <member> [reason]",
         description="Bans the specified member from the server.",
     )
-    @ban.guild_only()
-    @ban.has_permissions(ban_members=True)
-    @ban.cooldown(1, 2, commands.BucketType.member)
-    async def banmember(self, interaction: discord.Interaction, member: discord.Member, *, reason
+    @commands.guild_only()
+    @commands.has_permissions(ban_members=True)
+    @commands.cooldown(1, 2, commands.BucketType.member)
+    async def banmember(self, interaction: discord.Interaction, member: discord.Member, *, reason: str
         = "No reason provided"):
         logger.info(f"Banning member {member} (ID: {member.id}) for reason: {reason}")
         await member.ban(reason=reason)
@@ -115,12 +112,11 @@ class Administration(commands.Cog):
     
     @ban.command(
         name="remove",
-        usage="remove <user_id>",
         description="Unbans the specified user from the server.",
     )
-    @ban.guild_only()
-    @ban.has_permissions(ban_members=True)
-    @ban.cooldown(1, 2, commands.BucketType.member)
+    @commands.guild_only()
+    @commands.has_permissions(ban_members=True)
+    @commands.cooldown(1, 2, commands.BucketType.member)
     async def unbanmember(self, interaction: discord.Interaction, user_id: int):
         logger.info(f"Unbanning user with ID: {user_id}")
         user = await self.bot.fetch_user(user_id)
@@ -131,12 +127,11 @@ class Administration(commands.Cog):
         
     @ban.command(
         name="list",
-        usage="ban list",
         description="Lists all banned users in the server.",
     )
-    @ban.guild_only()
-    @ban.has_permissions(ban_members=True)
-    @ban.cooldown(1, 2, commands.BucketType.member)
+    @commands.guild_only()
+    @commands.has_permissions(ban_members=True)
+    @commands.cooldown(1, 2, commands.BucketType.member)
     async def listbans(self, interaction: discord.Interaction):
         logger.info("Fetching list of banned users...")
         bans = await interaction.guild.bans()
@@ -152,12 +147,11 @@ class Administration(commands.Cog):
         
     @moderation.command(
         name="add",
-        usage="moderation add <word>",
         description="Adds a word to the banned words list.",
     )
-    @moderation.guild_only()
-    @moderation.has_permissions(manage_messages=True)
-    @moderation.cooldown(1, 2, commands.BucketType.member)
+    @commands.guild_only()
+    @commands.has_permissions(manage_messages=True)
+    @commands.cooldown(1, 2, commands.BucketType.member)
     async def addbannedword(self, interaction: discord.Interaction, word: str):
         logger.info(f"Adding banned word: {word}")
         with get_session() as session:
@@ -170,12 +164,11 @@ class Administration(commands.Cog):
         
     @moderation.command(
         name="remove",
-        usage="moderation remove <word>",
         description="Removes a word from the banned words list.",
     )
-    @moderation.guild_only()
-    @moderation.has_permissions(manage_messages=True)
-    @moderation.cooldown(1, 2, commands.BucketType.member)
+    @commands.guild_only()
+    @commands.has_permissions(manage_messages=True)
+    @commands.cooldown(1, 2, commands.BucketType.member)
     async def removebannedword(self, interaction: discord.Interaction, word: str):
         logger.info(f"Removing banned word: {word}")
         with get_session() as session:

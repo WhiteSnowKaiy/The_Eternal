@@ -74,7 +74,7 @@ class AutoModeration(commands.Cog):
         Args:
             member (discord.Member): The member to check
         """
-        if member.display_name.lower() in self.banned_words:
+        if any(bw in remove_non_standard_characters(member.display_name.lower()) for bw in self.banned_words):
             await member.edit(nick="Moderated Nickname")
             # Warn the member
             warning = WarningModel(
@@ -84,13 +84,25 @@ class AutoModeration(commands.Cog):
                 session.add(warning)
                 session.commit()
 
-
     def is_string_blacklisted(self, s: str) -> bool:
-        BANNED_WORDS_FROM_DB = get_banned_words_from_db()
-        self.banned_words.extend([remove_non_standard_characters(i) for i in BANNED_WORDS_FROM_DB])
+        """Checks whether the given string contains any banned words."""
+        print("Checking string for banned words...")
+
+        banned_from_db = get_banned_words_from_db()
+
+        # Clean banned words from config + DB
+        # Use the correct instance variable
+        self.banned_words = [remove_non_standard_characters(i) for i in BANNED_WORDS]
+        self.banned_words.extend(remove_non_standard_characters(i) for i in banned_from_db)
+
+        # Clean the input string
         s = remove_non_standard_characters(s)
-        pattern = "|".join(self.banned_words)
-        return bool(re.search(pattern, s))
+
+        # Build safe regex
+        pattern = "|".join(re.escape(word) for word in self.banned_words if word)
+
+        return bool(re.search(pattern, s, re.IGNORECASE))
+
 
 
     # Methods - Helper
