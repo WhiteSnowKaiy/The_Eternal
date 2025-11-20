@@ -8,11 +8,21 @@ from discord.ext import commands
 from ..config.automod_config import BANNED_WORDS
 from ..database import get_session
 from ..database.models.warning import WarningModel
+from .. database.models.automod_words import AutomodWordsModel
 
 from ..config.discord_config import DEFAULT_ROLE, GUILD, WELCOME_CHANNEL
 
+
 def remove_non_standard_characters(s: str) -> str:
     return re.sub(f"[^{re.escape(STANDARD_CHARACTERS)}]", "", s)
+
+
+def get_banned_words_from_db() -> List[str]:
+    banned_words: List[str] = []
+    with get_session() as session:
+        words = session.query(AutomodWordsModel).all()
+        banned_words = [word.word for word in words]
+    return banned_words
 
 
 class AutoModeration(commands.Cog):
@@ -76,6 +86,8 @@ class AutoModeration(commands.Cog):
 
 
     def is_string_blacklisted(self, s: str) -> bool:
+        BANNED_WORDS_FROM_DB = get_banned_words_from_db()
+        self.banned_words.extend([remove_non_standard_characters(i) for i in BANNED_WORDS_FROM_DB])
         s = remove_non_standard_characters(s)
         pattern = "|".join(self.banned_words)
         return bool(re.search(pattern, s))
