@@ -19,6 +19,7 @@ class Information(commands.Cog):
         name="info", description="Get information about something"
     )
 
+
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
@@ -27,6 +28,7 @@ class Information(commands.Cog):
             callback=self.info_user_callback,
         )
         self.bot.tree.add_command(self.info_user_context_menu)
+
 
     @app_commands.command()
     async def about(self, interaction: discord.Interaction) -> None:

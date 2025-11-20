@@ -19,6 +19,7 @@ Base = declarative_base()
 # Import models here
 from .models.ban import BanModel  # noqa
 from .models.warning import WarningModel  # noqa
+from .models.automod_words import AutomodWordsModel  # noqa
 
 # Create tables
 Base.metadata.create_all(engine)

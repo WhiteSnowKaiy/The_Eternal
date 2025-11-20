@@ -39,7 +39,7 @@ class AutoModeration(commands.Cog):
                 session.add(warning)
                 session.commit()
             await channel.send(
-                f"Get automated idiot {author.mention}", delete_after=5.0
+                f"Don't send inappropriate messages, {author.mention}", delete_after=5.0
             )
 
 

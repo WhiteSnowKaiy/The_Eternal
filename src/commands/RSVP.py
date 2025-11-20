@@ -73,7 +73,6 @@ class RSVPView(discord.ui.View):
 
 
 class RSVP(commands.Cog):
-    
     RSVP: app_commands.Group = app_commands.Group(
         name="rsvp", description="Create and manage RSVP events"
     )
