@@ -1,7 +1,11 @@
+import logging
 import discord
 from discord import app_commands
 from discord.ext import commands
 import asyncio
+
+
+logger: logging.Logger = logging.getLogger("Eternal.EventServerController")
 
 
 class EventServerController(commands.Cog):
@@ -13,6 +17,7 @@ class EventServerController(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        
 
     @team.command(
         name="create",
@@ -27,7 +32,7 @@ class EventServerController(commands.Cog):
         team_names = [team.strip() for team in list_of_teams.split(',')]
         created_categories = []
 
-        await interaction.response.send_message(f"🚧 Creating categories for teams: {team_names}")
+        logger.info(f"Creating categories for teams: {team_names}")
 
         for team in team_names:
             # Create category
@@ -48,7 +53,7 @@ class EventServerController(commands.Cog):
             await interaction.guild.create_voice_channel(f"{team.lower().replace(' ', '_')}_voice", category=category)
             await asyncio.sleep(1)
 
-            await interaction.followup.send(f"✅ Channels created for team: {team}")
+            logger.info(f"Channels created for team: {team}")
 
     @team.command(
         name="remove",
@@ -67,62 +72,61 @@ class EventServerController(commands.Cog):
         team_name = role.name.replace("_role", "")
         base_name = team_name.lower().replace(" ", "_")
 
-        await interaction.response.send_message(f"🧹 Starting removal process for team **{team_name}**...")
+        logger.info(f"Starting removal process for team **{team_name}**...")
 
         # Remove role from all members
         for member in role.members:
             try:
                 await member.remove_roles(role, reason="Team removal initiated by admin")
-                await interaction.followup.send(f"👢 Removed {member.display_name}'s {role.name} role.")
+                logger.info(f"Removed {member.display_name}'s {role.name} role.")
             except discord.Forbidden:
-                await interaction.followup.send(f"⚠️ Couldn't remove role from {member.display_name} (permission issue).")
+                logger.warning(f"Couldn't remove role from {member.display_name} (permission issue).")
 
         # Delete associated category
         category_name = f"=== {team_name} ==="
         category = discord.utils.get(interaction.guild.categories, name=category_name)
         if category:
-            await interaction.followup.send(f"🗂️ Deleting category `{category_name}`...")
+            logger.info(f"Deleting category `{category_name}`...")
             try:
                 await category.delete()
-                await interaction.followup.send(f"✅ Category `{category_name}` deleted.")
+                logger.info(f"Category `{category_name}` deleted.")
             except discord.Forbidden:
-                await interaction.followup.send(f"⚠️ Missing permissions to delete category `{category_name}`.")
+                logger.warning(f"Missing permissions to delete category `{category_name}`.")
         else:
-            await interaction.followup.send(f"⚠️ Category `{category_name}` not found.")
+            logger.warning(f"Category `{category_name}` not found.")
         # Delete associated text channel
         text_channel_name = f"{base_name}_chat"
         text_channel = discord.utils.get(interaction.guild.text_channels, name=text_channel_name)
 
         if text_channel:
-            await interaction.followup.send(f"🗨️ Deleting text channel `{text_channel_name}`...")
+            logger.info(f"Deleting text channel `{text_channel_name}`...")
             try:
                 await text_channel.delete()
-                await interaction.followup.send(f"✅ Text channel `{text_channel_name}` deleted.")
+                logger.info(f"Text channel `{text_channel_name}` deleted.")
             except discord.Forbidden:
-                await interaction.followup.send(f"⚠️ Missing permissions to delete `{text_channel_name}`.")
+                logger.warning(f"Missing permissions to delete `{text_channel_name}`.")
         else:
-            await interaction.followup.send(f"⚠️ Text channel `{text_channel_name}` not found.")
+            logger.warning(f"Text channel `{text_channel_name}` not found.")
 
         # Delete associated voice channel
         voice_channel_name = f"{base_name}_voice"
         voice_channel = discord.utils.get(interaction.guild.voice_channels, name=voice_channel_name)
         if voice_channel:
-            await interaction.followup.send(f"🎤 Deleting voice channel `{voice_channel_name}`...")
+            logger.info(f"Deleting voice channel `{voice_channel_name}`...")
             try:
                 await voice_channel.delete()
-                await interaction.followup.send(f"✅ Voice channel `{voice_channel_name}` deleted.")
+                logger.info(f"Voice channel `{voice_channel_name}` deleted.")
             except discord.Forbidden:
-                await interaction.followup.send(f"⚠️ Missing permissions to delete `{voice_channel_name}`.")
+                logger.warning(f"Missing permissions to delete `{voice_channel_name}`.")
         else:
-            await interaction.followup.send(f"⚠️ Voice channel `{voice_channel_name}` not found.")
+            logger.warning(f"Voice channel `{voice_channel_name}` not found.")
         # Delete the team role itself
         try:
             await role.delete(reason="Team removed by admin")
-            await interaction.followup.send(f"🧾 Role `{role.name}` deleted successfully.")
+            logger.info(f"Role `{role.name}` deleted successfully.")
         except discord.Forbidden:
-            await interaction.followup.send(f"⚠️ Missing permissions to delete role `{role.name}`.")
-
-        await interaction.followup.send(f"✅ Team **{team_name}** has been fully removed.")
-
+            logger.warning(f"Missing permissions to delete role `{role.name}`.")
+        logger.info(f"Team **{team_name}** has been fully removed.")
+        
 async def setup(bot: commands.Bot):
     await bot.add_cog(EventServerController(bot))

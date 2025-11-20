@@ -21,7 +21,8 @@ logger_config.configure_logger(
         "Eternal.Transcripts",
         "Eternal.Events",
         "Eternal.RSVP",
-        "Eternal.Information"
+        "Eternal.Information",
+        "Eternal.EventServerController"
     ]
 )
 

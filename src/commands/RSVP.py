@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import os
 import logging
+from discord import app_commands
 
 logger: logging.Logger = logging.getLogger("Eternal.RSVP")
 
@@ -72,17 +73,22 @@ class RSVPView(discord.ui.View):
 
 
 class RSVP(commands.Cog):
+    
+    RSVP: app_commands.Group = app_commands.Group(
+        name="rsvp", description="Create and manage RSVP events"
+    )
+    
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.out_dir = os.path.join(os.path.dirname(__file__), 'out')
         self.rsvp_responses = {}
 
-    @commands.hybrid_command(
-        name="creatersvp",
-        usage="/creatersvp <title> <description> <banner_url> <timestamp>",
+    @RSVP.command(
+        name="create",
+        usage="/create <title> <description> <banner_url> <timestamp>",
         description="Create a universal RSVP with custom options.",
     )
-    async def creatersvp(self, ctx: commands.Context, title: str, description: str, banner_url: str, timestamp: int):
+    async def create(self, interaction: discord.Interaction, title: str, description: str, banner_url: str, timestamp: int):
         logger.debug("Creating universal RSVP")
         
         embed = discord.Embed(
@@ -90,10 +96,10 @@ class RSVP(commands.Cog):
             description=description,
             color=discord.Color.blurple()
         )
-        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
+        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
         embed.add_field(name="Event Time", value=f"<t:{timestamp}:F>")
         embed.set_image(url=banner_url)
-        embed.set_footer(text="Powered by your friendly bot")
+        embed.set_footer(text="Powered by Eternal Bot")
 
         # Define your RSVP options (easily modifiable)
         options = [
@@ -102,7 +108,7 @@ class RSVP(commands.Cog):
             {"label": "Not Going", "style": discord.ButtonStyle.red, "key": "not_going"}
         ]
 
-        message = await ctx.send(embed=embed)
+        message = await interaction.channel.send(embed=embed)
         view = RSVPView(self.rsvp_responses, message.id, options)
         await message.edit(view=view)
 

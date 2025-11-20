@@ -6,6 +6,7 @@ from discord.ext import commands
 
 from ..config import relative_dt
 
+
 logger: logging.Logger = logging.getLogger("Eternal.Information")
 
 

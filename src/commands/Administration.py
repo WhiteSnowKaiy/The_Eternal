@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 import discord
@@ -6,6 +7,9 @@ from sqlalchemy import desc, func
 
 from ..database import get_session
 from ..database.models.warning import WarningModel
+
+
+logger: logging.Logger = logging.getLogger("Eternal.Administration")
 
 
 class Administration(commands.Cog):
@@ -22,6 +26,7 @@ class Administration(commands.Cog):
     @commands.has_permissions(moderate_members=True)
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def warnings(self, ctx: commands.Context, member: discord.Member):
+        logger.info(f"Fetching warnings for member {member} (ID: {member.id})")
         warnings: List[WarningModel] = []
         warnings_text: List[str] = ["none :)"]
         with get_session() as session:
@@ -49,6 +54,7 @@ class Administration(commands.Cog):
             + "\n- ".join(warnings_text),
             ephemeral=True,
         )
+        logger.info(f"Displayed warnings for member {member} (ID: {member.id})")
         
         
     @commands.hybrid_command(
@@ -60,6 +66,7 @@ class Administration(commands.Cog):
     @commands.has_permissions(moderate_members=True)
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def clearwarnings(self, ctx: commands.Context, member: discord.Member): 
+        logger.info(f"Clearing warnings for member {member} (ID: {member.id})")
         with get_session() as session:
             deleted_count = (
                 session.query(WarningModel)
@@ -71,6 +78,7 @@ class Administration(commands.Cog):
             f"Cleared {deleted_count} warnings for {member.mention}.",
             ephemeral=True,
         )
+        logger.info(f"Cleared warnings for member {member} (ID: {member.id})")
     
     
     @commands.hybrid_command(
@@ -83,9 +91,10 @@ class Administration(commands.Cog):
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def banmember(self, ctx: commands.Context, member: discord.Member, *, reason
         = "No reason provided"):
+        logger.info(f"Banning member {member} (ID: {member.id}) for reason: {reason}")
         await member.ban(reason=reason)
         await ctx.send(f"{member.mention} has been banned. Reason: {reason}", ephemeral=True)
-    
+        logger.info(f"Banned member {member} (ID: {member.id})")
     
     @commands.hybrid_command(
         name="unbanmember",
@@ -96,9 +105,11 @@ class Administration(commands.Cog):
     @commands.has_permissions(ban_members=True)
     @commands.cooldown(1, 2, commands.BucketType.member)
     async def unbanmember(self, ctx: commands.Context, user_id: int):
+        logger.info(f"Unbanning user with ID: {user_id}")
         user = await self.bot.fetch_user(user_id)
         await ctx.guild.unban(user)
         await ctx.send(f"{user.mention} has been unbanned.", ephemeral=True)
+        logger.info(f"Unbanned user with ID: {user_id}")
     
 
 async def setup(bot: commands.Bot):

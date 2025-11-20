@@ -6,10 +6,16 @@ from discord.ext import commands
 import os
 from ..config.transcript_config import createHeader
 from logging import Logger, getLogger
+from discord import app_commands
+
 
 transcript_logger: Logger = getLogger("Eternal.Transcripts")
 
-class Transcript(commands.Cog):
+class Transcript(commands.Cog):    
+    transcript: app_commands.Group = app_commands.Group(
+        name="transcript", description="Manage transcript related commands"
+    )
+    
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.out_dir = os.path.join(os.path.dirname(__file__), 'out')            
@@ -22,6 +28,7 @@ class Transcript(commands.Cog):
     
     def parse_emoji(self, emoji_id: str):
         return f"https://cdn.discordapp.com/emojis/{emoji_id}.webp?size=128&quality=lossless"
+
 
     def next_emoji(self,message: str, startIndex: int) -> Tuple[int, int]:
         """
@@ -36,6 +43,7 @@ class Transcript(commands.Cog):
         sIdx = message.index(emoji, startIndex)
         eIdx = sIdx + len(emoji)
         return (sIdx, eIdx)
+
 
     def next_emoji_map(self, message: str, startIndex: int) -> Tuple[str, str]:
         """
@@ -54,6 +62,7 @@ class Transcript(commands.Cog):
         original = "<:" + emoji_list.split(":")[1] + ":" + emojiId + ">"
         return (original, emojiId)
 
+
     def get_all_emoji_urls(self, msg: str) -> List[str]:
         msg = msg.replace(" ", "").replace("\r", "\n").replace("\n", "")
 
@@ -70,6 +79,7 @@ class Transcript(commands.Cog):
                 pass
 
         return emoji
+
 
     def get_emoji_id_to_url_map(self, msg: str) -> Dict[str, str]:
         msg = msg.replace(" ", "").replace("\r", "\n").replace("\n", "")
@@ -88,8 +98,10 @@ class Transcript(commands.Cog):
 
         return emoji
 
+
     def url_map_to_html_map(self, url_map: Dict[str, str], width: int | str = 96, height: int | str = 96) -> Dict[str, str]:
         return {k: f'<img class="emoji" src="{v}" width="{width}" height="{height}" />' for k, v in url_map.items()}
+
 
     def download_all(self, emoji_urls: List[str], path: str):
         for e in emoji_urls:
@@ -97,7 +109,6 @@ class Transcript(commands.Cog):
             res = requests.get(url)
             with open(f"{path}/{e}.webp", "wb") as f:
                 f.write(res.content)
-
 
 
     def populate(self, message: str) -> str:
@@ -109,6 +120,7 @@ class Transcript(commands.Cog):
             message = message.replace(k, v)
 
         return message
+        
         
     def escape_html(self, text: str) -> str:
             """
@@ -142,8 +154,6 @@ class Transcript(commands.Cog):
                 out.append(part)
 
             return "".join(out)
-
-
 
 
     def escape_attachments(self, attachments):
@@ -198,12 +208,12 @@ class Transcript(commands.Cog):
         return f'#{getattr(color, "value", 0):06x}'
 
                 
-    @commands.hybrid_command(
-        name="transcriptchannel", 
-        usage="/transcriptchannel <channel name>", 
+    @transcript.command(
+        name="channel", 
+        usage="/transcript channel <channel name>", 
         description="creates transcript for a channel",
     )
-    async def transcriptchannel(self, ctx: commands.Context, channel: discord.TextChannel):
+    async def transcriptchannel(self, interaction: discord.Interaction, channel: discord.TextChannel):
         with open(os.path.join(self.out_dir, f"{channel.name}.html"), "w", encoding="utf-8") as file:
             # Write header
             file.write(await createHeader(channel.name))
@@ -240,13 +250,12 @@ class Transcript(commands.Cog):
 
         await self.removeHTML(ctx.author)  # type: ignore
 
-    
-    @commands.hybrid_command(
-        name="transcriptthread", 
-        usage="/transcriptthread <thread>", 
+    @transcript.command(
+        name="thread", 
+        usage="/transcript thread <thread>", 
         description="creates transcript for a thread",
     ) 
-    async def transcriptthread(self, ctx: commands.Context, thread: discord.Thread):
+    async def transcriptthread(self, interaction: discord.Interaction, thread: discord.Thread):
         with open(os.path.join(self.out_dir, f"{thread.name}.html"), "w", encoding="utf-8") as file:
             file.write(await createHeader(thread.name))
             file.write(f"<div>Thread ID: {thread.id}, Name: {thread.name}</div>")
@@ -281,12 +290,12 @@ class Transcript(commands.Cog):
         await self.removeHTML(ctx.author)  # type: ignore
         
             
-    @commands.hybrid_command(
-    name="transcriptthreads", 
-    usage="/transcriptthreads <channel>", 
-    description="creates transcripts for all threads in a channel",
-)
-    async def transcriptthreads(self, ctx: commands.Context, channel: discord.TextChannel):
+    @transcript.command(
+        name="threads", 
+        usage="/transcript threads <channel>", 
+        description="creates transcripts for all threads in a channel",
+    )
+    async def transcriptthreads(self, interaction: discord.Interaction, channel: discord.TextChannel):
         threads = channel.archived_threads()
 
         async for thread in threads:
