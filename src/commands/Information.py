@@ -30,7 +30,7 @@ class Information(commands.Cog):
         self.bot.tree.add_command(self.info_user_context_menu)
 
 
-    @app_commands.command()
+    @info.command()
     async def about(self, interaction: discord.Interaction) -> None:
         """View information about The Eternal bot."""
         # some statistics
@@ -86,18 +86,14 @@ class Information(commands.Cog):
                 f"{int_fmt(voice_channels)} Voice"
             ),
         )
-        embed.add_field(
-            name="Installs",
-            value=(
-                f"{int_fmt(app_info.approximate_guild_count)} Servers\n"
-                f"{int_fmt(app_info.approximate_user_install_count)} Users"
-            ),
-        )
+        bot_member = interaction.guild.get_member(self.bot.user.id) if interaction.guild else None
+        joined_at = bot_member.joined_at if bot_member and bot_member.joined_at else discord.utils.utcnow()
+
         embed.add_field(
             name="Timeline",
             value=(
                 f"Created: {relative_dt(self.bot.user.created_at)}\n"
-                f"Joined server: {relative_dt(interaction.guild.me.joined_at or discord.utils.utcnow())}\n"
+                f"Joined server: {relative_dt(joined_at)}\n"
                 f"Boot time: {relative_dt(self.bot.boot_time)}"
             ),
             inline=False,
@@ -110,6 +106,7 @@ class Information(commands.Cog):
         embed.timestamp = discord.utils.utcnow()
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
+        
 
     @info.command(name="server")
     async def info_guild(self, interaction: discord.Interaction) -> None:

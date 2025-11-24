@@ -152,3 +152,4 @@ cython_debug/
 #.idea/
 
 database.db
+src/commands/out/rsvp_responses.json

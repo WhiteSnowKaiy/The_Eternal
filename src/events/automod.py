@@ -84,9 +84,9 @@ class AutoModeration(commands.Cog):
                 session.add(warning)
                 session.commit()
 
+
     def is_string_blacklisted(self, s: str) -> bool:
         """Checks whether the given string contains any banned words."""
-        print("Checking string for banned words...")
 
         banned_from_db = get_banned_words_from_db()
 
@@ -102,7 +102,6 @@ class AutoModeration(commands.Cog):
         pattern = "|".join(re.escape(word) for word in self.banned_words if word)
 
         return bool(re.search(pattern, s, re.IGNORECASE))
-
 
 
     # Methods - Helper

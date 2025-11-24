@@ -209,12 +209,17 @@ class Transcript(commands.Cog):
 
                 
     @transcript.command(
-        name="channel",
-        description="creates transcript for a channel",
+    name="channel",
+    description="creates transcript for a channel",
     )
     async def transcriptchannel(self, interaction: discord.Interaction, channel: discord.TextChannel):
-        with open(os.path.join(self.out_dir, f"{channel.name}.html"), "w", encoding="utf-8") as file:
-            # Write header
+
+        await interaction.response.defer(ephemeral=True)
+
+        filename = f"{channel.name}.html"
+        filepath = os.path.join(self.out_dir, filename)
+
+        with open(filepath, "w", encoding="utf-8") as file:
             file.write(await createHeader(channel.name))
 
             messages = []
@@ -225,36 +230,51 @@ class Transcript(commands.Cog):
                 color_hex = self._color_hex(message.author.color)
                 author_name = message.author.display_name
                 messages.append((pfp_url, color_hex, author_name, content, attachments))
-                
-            
-            # Write messages in reverse (oldest → newest)
+
             for pfp, color, author_name, content, attachments in reversed(messages):
                 file.write(
                     f'''
                     <div class="message">
-                    <img class="avatar" src="{pfp}" alt="{author_name} avatar">
-                    <div class="content">
-                        <div class="header">
-                        <span class="username" style="color:{color}">{author_name}</span>
+                        <img class="avatar" src="{pfp}" alt="{author_name} avatar">
+                        <div class="content">
+                            <div class="header">
+                                <span class="username" style="color:{color}">{author_name}</span>
+                            </div>
+                            <div class="message-body">{content}</div>
+                            {attachments}
                         </div>
-                        <div class="message-body">{content}</div>
-                        {attachments}
-                    </div>
                     </div>
                     '''
                 )
 
-            # Close HTML
             file.write("</main></body></html>")
 
-        await self.removeHTML(ctx.author)  # type: ignore
+        # Send the transcript via DM
+        try:
+            await interaction.user.send(file=discord.File(filepath))
+        except discord.Forbidden:
+            await interaction.followup.send("I cannot DM you. Please enable direct messages.", ephemeral=True)
+        else:
+            await interaction.followup.send("Transcript sent to your DMs!", ephemeral=True)
+
+        # Delete file locally
+        try:
+            os.remove(filepath)
+        except Exception:
+            pass
 
     @transcript.command(
-        name="thread", 
-        description="creates transcript for a thread",
-    ) 
+    name="thread", 
+    description="creates transcript for a thread",
+    )
     async def transcriptthread(self, interaction: discord.Interaction, thread: discord.Thread):
-        with open(os.path.join(self.out_dir, f"{thread.name}.html"), "w", encoding="utf-8") as file:
+
+        await interaction.response.defer(ephemeral=True)
+
+        filename = f"{thread.name}.html"
+        filepath = os.path.join(self.out_dir, filename)
+
+        with open(filepath, "w", encoding="utf-8") as file:
             file.write(await createHeader(thread.name))
             file.write(f"<div>Thread ID: {thread.id}, Name: {thread.name}</div>")
 
@@ -270,33 +290,53 @@ class Transcript(commands.Cog):
             for pfp, color, author_name, content, attachments in reversed(messages):
                 file.write(
                     f'''
-    <div class="message">
-    <img class="avatar" src="{pfp}" alt="{author_name} avatar">
-    <div class="content">
-        <div class="header">
-        <span class="username" style="color:{color}">{author_name}</span>
-        </div>
-        <div class="message-body">{content}</div>
-        {attachments}
-    </div>
-    </div>
-    '''
+                    <div class="message">
+                        <img class="avatar" src="{pfp}" alt="{author_name} avatar">
+                        <div class="content">
+                            <div class="header">
+                                <span class="username" style="color:{color}">{author_name}</span>
+                            </div>
+                            <div class="message-body">{content}</div>
+                            {attachments}
+                        </div>
+                    </div>
+                    '''
                 )
 
             file.write("</main></body></html>")
 
-        await self.removeHTML(ctx.author)  # type: ignore
+        # DM user
+        try:
+            await interaction.user.send(file=discord.File(filepath))
+        except discord.Forbidden:
+            await interaction.followup.send("I cannot DM you. Please enable direct messages.", ephemeral=True)
+        else:
+            await interaction.followup.send("Transcript sent to your DMs!", ephemeral=True)
+
+        # Delete local file
+        try:
+            os.remove(filepath)
+        except Exception:
+            pass
+
         
             
     @transcript.command(
-        name="threads", 
-        description="creates transcripts for all threads in a channel",
+    name="threads",
+    description="creates transcripts for all threads in the channel",
     )
     async def transcriptthreads(self, interaction: discord.Interaction, channel: discord.TextChannel):
+
+        await interaction.response.defer(ephemeral=True)
+
         threads = channel.archived_threads()
+        sent_files = []
 
         async for thread in threads:
-            with open(os.path.join(self.out_dir, f"{thread.name}.html"), "w", encoding="utf-8") as file:
+            filename = f"{thread.name}.html"
+            filepath = os.path.join(self.out_dir, filename)
+
+            with open(filepath, "w", encoding="utf-8") as file:
                 file.write(await createHeader(thread.name))
                 file.write(f"<div>Thread ID: {thread.id}, Name: {thread.name}</div>")
 
@@ -312,22 +352,39 @@ class Transcript(commands.Cog):
                 for pfp, color, author_name, content, attachments in reversed(messages):
                     file.write(
                         f'''
-    <div class="message">
-    <img class="avatar" src="{pfp}" alt="{author_name} avatar">
-    <div class="content">
-        <div class="header">
-        <span class="username" style="color:{color}">{author_name}</span>
-        </div>
-        <div class="message-body">{content}</div>
-        {attachments}
-    </div>
-    </div>
-    '''
+                        <div class="message">
+                            <img class="avatar" src="{pfp}" alt="{author_name} avatar">
+                            <div class="content">
+                                <div class="header">
+                                    <span class="username" style="color:{color}">{author_name}</span>
+                                </div>
+                                <div class="message-body">{content}</div>
+                                {attachments}
+                            </div>
+                        </div>
+                        '''
                     )
 
                 file.write("</main></body></html>")
 
-        await self.removeHTML(ctx.author)  # type: ignore
+            sent_files.append(filepath)
+
+        # DM each transcript
+        try:
+            for fp in sent_files:
+                await interaction.user.send(file=discord.File(fp))
+        except discord.Forbidden:
+            await interaction.followup.send("I cannot DM you. Please enable direct messages.", ephemeral=True)
+        else:
+            await interaction.followup.send("All thread transcripts sent to your DMs!", ephemeral=True)
+
+        # Delete all local files
+        for fp in sent_files:
+            try:
+                os.remove(fp)
+            except Exception:
+                pass
+
         
 async def setup(bot: commands.Bot):
     await bot.add_cog(Transcript(bot))
