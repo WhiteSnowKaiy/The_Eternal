@@ -30,7 +30,7 @@ class Information(commands.Cog):
         self.bot.tree.add_command(self.info_user_context_menu)
 
 
-    @info.command()
+    @info.command(name="about")
     async def about(self, interaction: discord.Interaction) -> None:
         """View information about The Eternal bot."""
         # some statistics

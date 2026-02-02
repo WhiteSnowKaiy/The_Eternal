@@ -32,7 +32,6 @@ class Administration(commands.Cog):
     )
     
     
-    
     @warning.command(
         name="warnings",
         description="Shows all warnings for the specified user",
@@ -185,6 +184,20 @@ class Administration(commands.Cog):
             await interaction.response.send_message(f"The word '{word}' was not found in the banned words list.", ephemeral=True)
             logger.info(f"Banned word not found: {word}")
     
+    
+    @moderation.command(
+        name="purge",
+        description="Purge x ammount of messages from a channel.",
+    )
+    @commands.guild_only()
+    @commands.has_permissions(manage_messages=True)
+    @commands.cooldown(1, 2, commands.BucketType.member)
+    async def purge(self, interaction: discord.Interaction, amount: int):
+        logger.info(f"Purging {amount} messages from channel {interaction.channel} (ID: {interaction.channel.id})")
+        deleted = await interaction.channel.purge(limit=amount)
+        await interaction.response.send_message(f"Purged {len(deleted)} messages.", ephemeral=True)
+        logger.info(f"Purged {len(deleted)} messages from channel {interaction.channel} (ID: {interaction.channel.id})")
+        
     
 
 async def setup(bot: commands.Bot):
