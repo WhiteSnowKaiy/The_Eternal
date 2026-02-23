@@ -91,17 +91,24 @@ class AutoModeration(commands.Cog):
         banned_from_db = get_banned_words_from_db()
 
         # Clean banned words from config + DB
-        # Use the correct instance variable
-        self.banned_words = [remove_non_standard_characters(i) for i in BANNED_WORDS]
-        self.banned_words.extend(remove_non_standard_characters(i) for i in banned_from_db)
+        self.banned_words = [
+            remove_non_standard_characters(i) for i in BANNED_WORDS
+        ]
+        self.banned_words.extend(
+            remove_non_standard_characters(i) for i in banned_from_db
+        )
 
         # Clean the input string
         s = remove_non_standard_characters(s)
 
-        # Build safe regex
-        pattern = "|".join(re.escape(word) for word in self.banned_words if word)
-
-        return bool(re.search(pattern, s, re.IGNORECASE))
+        # Build safe regex with word boundaries
+        pattern = r"\b(" + "|".join(
+            re.escape(word) for word in self.banned_words if word
+        ) + r")\b"
+        
+        self._compiled_pattern = re.compile(pattern, re.IGNORECASE)
+        
+        return bool(self._compiled_pattern.search(s))
 
 
     # Methods - Helper
