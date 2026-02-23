@@ -5,7 +5,6 @@ Attributes:
 """
 from typing import List
 
-# TODO: Consider loading this from DB or a static file in the bot's home/root folder
 BANNED_WORDS: List[str] = [
     "^FAGGOT",
     "^TRANNY",

@@ -23,7 +23,7 @@ class EventServerController(commands.Cog):
         name="create",
         description="Creates team categories, roles, and channels for an event."
     )
-    @commands.has_role("Admin")
+    @commands.has_permissions(manage_channels=True, manage_roles=True)
     async def create_teams(self, interaction: discord.Interaction, list_of_teams: str):
         """
         Creates categories, roles, and text/voice channels for each team in the provided list.
@@ -59,7 +59,7 @@ class EventServerController(commands.Cog):
         name="remove",
         description="Removes a team: deletes its category, channels, and role."
     )
-    @commands.has_role("Admin")
+    @commands.has_permissions(manage_channels=True, manage_roles=True)
     async def remove_team(self, interaction: discord.Interaction, role: discord.Role):
         """
         Removes all members from a team role and deletes its associated category,
