@@ -54,7 +54,7 @@ class Information(commands.Cog):
                     voice_channels += 1
 
         app_info = await self.bot.application_info()
-        git_link = "https://github.com/your-repo-link"
+        git_link = "https://github.com/WhiteSnowKaiy/The_Eternal/"
         thumbnail_url = (
             self.bot.user.avatar.url
             if self.bot.user.avatar
@@ -94,7 +94,6 @@ class Information(commands.Cog):
             value=(
                 f"Created: {relative_dt(self.bot.user.created_at)}\n"
                 f"Joined server: {relative_dt(joined_at)}\n"
-                f"Boot time: {relative_dt(self.bot.boot_time)}"
             ),
             inline=False,
         )
