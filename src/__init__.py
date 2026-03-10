@@ -89,8 +89,7 @@ async def on_ready():
     logger.info("Running discord.py %s", discord.__version__)
     logger.info("We have logged in as %s", bot.user.name) # type: ignore
     await bot.change_presence(
-            activity=discord.Activity(
-            type=discord.ActivityType.listening, name="to your commands!"
+            activity=discord.Activity(name="Waiting for your commands!"
         )
     )
     logger.info("Ready!")
