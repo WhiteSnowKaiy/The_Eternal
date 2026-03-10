@@ -9,80 +9,83 @@ from typing import List, Dict, Optional
 logger: logging.Logger = logging.getLogger("Eternal.RSVP")
 
 
+# =========================
+# RSVP VIEW
+# =========================
 class RSVPView(discord.ui.View):
-    """A dynamic, (optionally) persistent view for RSVP buttons.
-
-    Notes:
-    - You can construct it without a message_id and attach it when sending.
-    - For persistence after restarts, the cog registers the view with bot.add_view(view, message_id=...)
-    """
-
-    def __init__(self, rsvp_responses: Dict[int, Dict[str, List[str]]], message_id: Optional[int], options: List[Dict]):
-        # persistent if timeout is None
+    def __init__(
+        self,
+        rsvp_responses: Dict[int, Dict[str, List[int]]],
+        message_id: Optional[int],
+        options: List[Dict],
+        save_callback,
+    ):
         super().__init__(timeout=None)
         self.rsvp_responses = rsvp_responses
         self.message_id = message_id
         self.options = options
+        self.save_callback = save_callback
         self._add_dynamic_buttons()
-
 
     def _add_dynamic_buttons(self):
         self.clear_items()
 
         for opt in self.options:
-            # Every button *must* have a custom_id for persistence
             button = discord.ui.Button(
                 label=opt["label"],
                 style=opt["style"],
                 custom_id=f"rsvp_{opt['key']}"
             )
 
-            def make_callback(key: str):
-                async def callback(interaction: discord.Interaction):
-                    await self._handle_rsvp(interaction, key)
-                return callback
+            async def callback(interaction: discord.Interaction, key=opt["key"]):
+                await self._handle_rsvp(interaction, key)
 
-            button.callback = make_callback(opt["key"])
+            button.callback = callback
             self.add_item(button)
 
-
     async def _handle_rsvp(self, interaction: discord.Interaction, response_type: str):
-        # Use mention strings to show in embed; you could also store user IDs instead.
-        user_mention = interaction.user.mention
+        user_id = interaction.user.id
+
+        # Ensure message_id exists
+        if self.message_id is None:
+            if interaction.message and interaction.message.id:
+                self.message_id = interaction.message.id
+            else:
+                await interaction.response.send_message(
+                    "Error: Could not determine RSVP message.",
+                    ephemeral=True
+                )
+                return
 
         # Ensure structure exists
-        if self.message_id is None:
-            # Try to fall back to the message on the interaction (non-persistent case)
-            try:
-                msg = interaction.message
-                if msg and getattr(msg, 'id', None):
-                    self.message_id = msg.id
-            except Exception:
-                pass
-
         if self.message_id not in self.rsvp_responses:
-            self.rsvp_responses[self.message_id] = {opt["key"]: [] for opt in self.options}
+            self.rsvp_responses[self.message_id] = {
+                opt["key"]: [] for opt in self.options
+            }
 
         responses = self.rsvp_responses[self.message_id]
 
         # Toggle RSVP
-        if user_mention in responses.get(response_type, []):
-            responses[response_type].remove(user_mention)
-            await interaction.response.send_message("You have been removed from this RSVP.", ephemeral=True)
+        if user_id in responses.get(response_type, []):
+            responses[response_type].remove(user_id)
+            msg = "You have been removed from this RSVP."
         else:
-            # Remove user from other response lists
             for key in responses:
-                if user_mention in responses[key]:
-                    responses[key].remove(user_mention)
-            responses[response_type].append(user_mention)
+                if user_id in responses[key]:
+                    responses[key].remove(user_id)
+            responses[response_type].append(user_id)
             pretty = response_type.replace('_', ' ').title()
-            await interaction.response.send_message(f"You responded: **{pretty}**", ephemeral=True)
+            msg = f"You responded: **{pretty}**"
 
-        # Update the message embed (fetch the message to be robust)
+        await interaction.response.send_message(msg, ephemeral=True)
+
+        # Persist immediately
+        self.save_callback()
+
+        # Update embed
         await self._update_rsvp_message(interaction.channel, self.message_id)
 
     async def _update_rsvp_message(self, channel: discord.abc.GuildChannel, message_id: int):
-        logger.debug("Updating RSVP message...")
         try:
             message = await channel.fetch_message(message_id)
         except Exception as e:
@@ -90,53 +93,41 @@ class RSVPView(discord.ui.View):
             return
 
         if not message.embeds:
-            logger.warning("RSVP message has no embeds; skipping update")
             return
 
-        embed = message.embeds[0]
+        old_embed = message.embeds[0]
+        embed = discord.Embed.from_dict(old_embed.to_dict())
+        embed.clear_fields()
 
-        # Defensive copy of old non-RSVP fields
-        preserved = []
+        # Preserve non-RSVP fields
         rsvp_labels = [opt["label"] for opt in self.options]
-
-        for field in embed.fields:
+        for field in old_embed.fields:
             if field.name not in rsvp_labels:
-                preserved.append((field.name, field.value, field.inline))
+                embed.add_field(name=field.name, value=field.value, inline=field.inline)
 
-        # Build a fresh embed preserving title/description/image/author/footer/color
-        new_embed = discord.Embed(
-            title=embed.title or "",
-            description=embed.description or "",
-            color=embed.color or discord.Color.blurple()
-        )
-        try:
-            if embed.author:
-                new_embed.set_author(name=embed.author.name, icon_url=getattr(embed.author, 'icon_url', None) or getattr(embed.author, 'icon_url', None))
-        except Exception:
-            pass
-        if embed.image:
-            new_embed.set_image(url=embed.image.url)
-        if embed.footer:
-            new_embed.set_footer(text=embed.footer.text)
-        
-        # Re-add preserved fields
-        for name, value, inline in preserved:
-            if name:
-                new_embed.add_field(name=name, value=value, inline=inline)
-
-        # Add RSVP lists
+        # Add RSVP fields
+        guild = message.guild
         for opt in self.options:
             key = opt["key"]
-            responders = "\n".join(self.rsvp_responses.get(message_id, {}).get(key, [])) or "\u200b"
-            new_embed.add_field(name=opt["label"], value=responders, inline=True)
+            user_ids = self.rsvp_responses.get(message_id, {}).get(key, [])
+
+            mentions = []
+            for uid in user_ids:
+                member = guild.get_member(uid)
+                mentions.append(member.mention if member else f"<@{uid}>")
+
+            value = "\n".join(mentions) or "\u200b"
+            embed.add_field(name=opt["label"], value=value, inline=True)
 
         try:
-            await message.edit(embed=new_embed)
-            logger.debug("RSVP embed updated.")
+            await message.edit(embed=embed)
         except Exception as e:
             logger.exception("Failed to edit RSVP message: %s", e)
 
 
+# =========================
+# COG
+# =========================
 class RSVP(commands.Cog):
     RSVP: app_commands.Group = app_commands.Group(
         name="rsvp", description="Create and manage RSVP events"
@@ -154,23 +145,24 @@ class RSVP(commands.Cog):
         os.makedirs(self.out_dir, exist_ok=True)
         self._store_path = os.path.join(self.out_dir, 'rsvp_responses.json')
 
-        # message_id -> { key -> [mention, ...] }
-        self.rsvp_responses: Dict[int, Dict[str, List[str]]] = {}
+        # message_id -> { key -> [user_id, ...] }
+        self.rsvp_responses: Dict[int, Dict[str, List[int]]] = {}
 
-        # load persisted responses if available
         self._load_store()
-
-        # keep the options on the cog so cog_load can recreate views
         self.options = RSVP.DEFAULT_OPTIONS
 
+    # -------------------------
+    # Persistence
+    # -------------------------
     def _load_store(self):
         try:
             if os.path.exists(self._store_path):
                 with open(self._store_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    # keys saved as strings — convert back to int
-                    self.rsvp_responses = {int(k): v for k, v in data.items()}
-                    logger.debug("Loaded RSVP store with %d messages", len(self.rsvp_responses))
+                    self.rsvp_responses = {
+                        int(k): {rk: list(map(int, rv)) for rk, rv in v.items()}
+                        for k, v in data.items()
+                    }
         except Exception:
             logger.exception("Failed loading RSVP store")
             self.rsvp_responses = {}
@@ -178,88 +170,82 @@ class RSVP(commands.Cog):
     def _save_store(self):
         try:
             with open(self._store_path, 'w', encoding='utf-8') as f:
-                json.dump({str(k): v for k, v in self.rsvp_responses.items()}, f, ensure_ascii=False, indent=2)
+                json.dump(self.rsvp_responses, f, indent=2)
         except Exception:
             logger.exception("Failed saving RSVP store")
 
+    # -------------------------
+    # Lifecycle
+    # -------------------------
     async def cog_load(self) -> None:
-        """Register persistent views for any known message IDs so buttons survive restarts."""
-        # Re-create and register views for persisted RS vps
         for message_id in list(self.rsvp_responses.keys()):
-            view = RSVPView(self.rsvp_responses, message_id, self.options)
-            try:
-                # Register the view with discord.py to listen for component interactions
-                self.bot.add_view(view, message_id=message_id)
-                logger.debug("Registered persistent RSVP view for message %s", message_id)
-            except Exception:
-                logger.exception("Failed to register persistent view for %s", message_id)
+            view = RSVPView(
+                self.rsvp_responses,
+                message_id,
+                self.options,
+                self._save_store
+            )
+            self.bot.add_view(view, message_id=message_id)
+
+            # 🔥 Rebuild embeds on startup
+            channel = self.bot.get_channel  # resolved lazily later
 
     async def cog_unload(self) -> None:
-        # Save current state
         self._save_store()
 
-    @RSVP.command(
-        name="create",
-        description="Create a universal RSVP with custom options.",
+    # -------------------------
+    # Commands
+    # -------------------------
+    @RSVP.command(name="create", description="Create RSVP event")
+    @app_commands.describe(
+        title='Event title',
+        description='Event description',
+        banner_url='Optional image url',
+        timestamp='Unix timestamp (seconds)'
     )
-    @app_commands.describe(title='Event title', description='Event description', banner_url='Optional image url', timestamp='Unix timestamp (seconds)')
-    async def create(self, interaction: discord.Interaction, title: str, description: str, banner_url: Optional[str] = None, timestamp: Optional[int] = None):
-        logger.debug("Creating universal RSVP")
-
+    async def create(
+        self,
+        interaction: discord.Interaction,
+        title: str,
+        description: str,
+        banner_url: Optional[str] = None,
+        timestamp: Optional[int] = None
+    ):
         embed = discord.Embed(
             title=title,
             description=description,
             color=discord.Color.blurple()
         )
-        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
+        embed.set_author(
+            name=interaction.user.display_name,
+            icon_url=interaction.user.display_avatar.url
+        )
+
         if timestamp:
             embed.add_field(name="Event Time", value=f"<t:{timestamp}:F>", inline=False)
+
         if banner_url:
             embed.set_image(url=banner_url)
+
         embed.set_footer(text="Powered by Eternal Bot")
 
-        # Use options from cog
-        options = self.options
+        view = RSVPView(
+            self.rsvp_responses,
+            None,
+            self.options,
+            self._save_store
+        )
 
-        # Create a view WITHOUT message_id; we'll attach it to the sent message, then register it
-        view = RSVPView(self.rsvp_responses, None, options)
-
-        # Send the message as the *interaction response* so the user sees success immediately
         await interaction.response.send_message(embed=embed, view=view)
+        message = await interaction.original_response()
 
-        # Retrieve the created message so we can store the message ID and register the persistent view
-        try:
-            message = await interaction.original_response()
-        except Exception:
-            # Fallback: attempt to fetch the last message in the channel (not ideal)
-            # Prefer the `original_response()` path above
-            channel = interaction.channel
-            message = None
-            try:
-                async for msg in channel.history(limit=5):
-                    if msg.author.id == self.bot.user.id and msg.embeds and msg.embeds[0].title == title:
-                        message = msg
-                        break
-            except Exception:
-                logger.exception("Couldn't find the sent message for RSVP creation")
-
-        if not message:
-            # We couldn't determine the message ID — inform the command user
-            logger.error("Failed to locate the RSVP message after sending")
-            return
-
-        # Set view message_id and register to persist
         view.message_id = message.id
-        try:
-            self.bot.add_view(view, message_id=message.id)
-        except Exception:
-            logger.exception("Failed to register view after create")
+        self.bot.add_view(view, message_id=message.id)
 
-        # Initialize the response store for this message and save
-        self.rsvp_responses[message.id] = {opt["key"]: [] for opt in options}
+        self.rsvp_responses[message.id] = {
+            opt["key"]: [] for opt in self.options
+        }
         self._save_store()
-
-        logger.debug("RSVP created successfully for message %s.", message.id)
 
 
 async def setup(bot: commands.Bot):
