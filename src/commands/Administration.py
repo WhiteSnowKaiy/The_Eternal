@@ -116,7 +116,7 @@ class Administration(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(ban_members=True)
     @commands.cooldown(1, 2, commands.BucketType.member)
-    async def unbanmember(self, interaction: discord.Interaction, user_id: int):
+    async def unbanmember(self, interaction: discord.Interaction, user_id: discord.User):
         logger.info(f"Unbanning user with ID: {user_id}")
         user = await self.bot.fetch_user(user_id)
         await interaction.guild.unban(user)
